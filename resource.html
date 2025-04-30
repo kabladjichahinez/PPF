@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض المورد</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #1dc9d6;
+            --secondary-color: #17a2b8;
+            --text-color: #333;
+            --light-gray: #f5f5f5;
+            --border-color: #ddd;
+        }
+        
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+        
+        .resource-header {
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 25px;
+            text-align: right;
+        }
+        
+        .resource-header h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .images-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .image-card {
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 220px;
+            object-fit: contain;
+            display: block;
+            background: var(--light-gray);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .image-info {
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .back-btn:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            grid-column: 1 / -1;
+        }
+        
+        .empty-state i {
+            font-size: 50px;
+            color: #ccc;
+            margin-bottom: 15px;
+        }
+        
+        .empty-state p {
+            font-size: 18px;
+            color: #666;
+            margin: 10px 0;
+        }
+        
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+            grid-column: 1 / -1;
+            color: #d9534f;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+            
+            .images-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .resource-header h1 {
+                font-size: 24px;
+            }
+        }
+
+        .modal {
+    display: none; /* مخفية بشكل افتراضي */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal img {
+    max-width: none; /* إزالة الحد الأقصى للعرض */
+    max-height: none; /* إزالة الحد الأقصى للارتفاع */
+    width: 40% ; /* عرض الصورة بحجمها الطبيعي */
+    height: auto; /* ارتفاع الصورة بحجمها الطبيعي */
+}
+
+.close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="resource-header">
+            <h1 id="resourceTitle">تحميل المورد...</h1>
+        </div>
+        
+        <div class="images-container" id="imagesContainer">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>جاري تحميل الصور...</p>
+            </div>
+        </div>
+        <div id="imageModal" class="modal" style="display: none;">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <img id="modalImage" src="" alt="صورة كبيرة" style="width: 35%; height: auto;">
+        </div>
+        
+        <button onclick="window.location.href='package.html'" class="back-btn">
+            <i class="fas fa-arrow-right"></i> العودة إلى القائمة الرئيسية
+        </button>
+    </div>
+
+    <script>
+       document.addEventListener("DOMContentLoaded", function() {
+    // الحصول على معرّف المورد من URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const resourceId = parseInt(urlParams.get('id'));
+    const resourceTitle = document.getElementById("resourceTitle");
+    const imagesContainer = document.getElementById("imagesContainer");
+
+    // تعريف متغيرات قاعدة البيانات
+    const DB_NAME = "ResourcesDB";
+    const DB_VERSION = 1;
+    let db;
+
+    // دالة لجلب مورد معين
+    async function getResource(id) {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            
+            request.onerror = (event) => reject(event.target.error);
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['resources'], 'readonly');
+                const store = transaction.objectStore('resources');
+                
+                const getRequest = store.get(id);
+                
+                getRequest.onsuccess = () => {
+                    if (!getRequest.result) {
+                        reject(new Error("المورد غير موجود"));
+                    } else {
+                        resolve(getRequest.result);
+                    }
+                };
+                
+                getRequest.onerror = (event) => reject(event.target.error);
+            };
+        });
+    }
+
+    // إنشاء بطاقة صورة
+    function createImageCard(imageSrc, imageNum, title) {
+        const card = document.createElement("div");
+        card.className = "image-card";
+        
+        const img = document.createElement("img");
+        img.src = imageSrc;
+        img.alt = `${title} - الصورة ${imageNum}`;
+        img.loading = "lazy";
+
+        img.addEventListener("click", function() {
+            openModal(imageSrc);
+        });
+        
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "image-info";
+        infoDiv.textContent = `الصورة ${imageNum}`;
+        
+        card.appendChild(img);
+        card.appendChild(infoDiv);
+        imagesContainer.appendChild(card);
+    }
+
+    // عرض حالة عدم وجود صور
+    function showEmptyState(message) {
+        imagesContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="far fa-images"></i>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+
+    // عرض حالة الخطأ
+    function showError(message) {
+        imagesContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+
+    // فتح النافذة المنبثقة
+    function openModal(imageSrc) {
+        const modal = document.getElementById("imageModal");
+        const modalImage = document.getElementById("modalImage");
+        modalImage.src = imageSrc;
+        modal.style.display = "flex";
+    }
+
+    // إغلاق النافذة المنبثقة
+    function closeModal() {
+        const modal = document.getElementById("imageModal");
+        modal.style.display = "none";
+    }
+
+    // عرض المورد
+    async function displayResource() {
+        try {
+            const resource = await getResource(resourceId);
+            resourceTitle.textContent = resource.title;
+            imagesContainer.innerHTML = "";
+
+            if (!resource.images || resource.images.length === 0) {
+                showEmptyState("لا توجد صور متاحة لهذا المورد");
+                return;
+            }
+
+            resource.images.forEach((imageData, index) => {
+                createImageCard(imageData, index + 1, resource.title);
+            });
+        } catch (error) {
+            console.error("حدث خطأ:", error);
+            showError(error.message || "حدث خطأ أثناء تحميل المورد");
+        }
+    }
+
+    // أحداث النافذة المنبثقة
+    document.querySelector(".close").addEventListener("click", closeModal);
+    window.addEventListener("click", function(event) {
+        if (event.target === document.getElementById("imageModal")) {
+            closeModal();
+        }
+    });
+
+    // بدء التحميل
+    displayResource();
+});
+    </script>
+</body>
+</html>
